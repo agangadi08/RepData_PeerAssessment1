@@ -1,25 +1,122 @@
 ---
 title: "Reproducible Research: Peer Assessment 1"
-output: 
+output:
   html_document:
     keep_md: true
 ---
+# Activity Monitoring
 
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
 
 ## Loading and preprocessing the data
 
+```{r activity}
+library(readr)
+library(dplyr)
+activity <- read_csv("~/Documents/Data Science/R/Coursera/activity.csv")
+head(activity)
+summary(activity)
+plot(activity$date, activity$steps)
+```
 
+## Transforming the data/Histogram
+
+```{r aggregate by date}
+agg_steps <-  aggregate(steps ~ date, data=activity, FUN=sum)
+colnames(agg_steps) <- c("Date","Steps")
+
+hist(agg_steps$Steps , xlab="Number of steps", main="Total steps per day")
+```
 
 ## What is mean total number of steps taken per day?
 
+```{r}
+(mean(agg_steps$Steps,na.rm=TRUE))
+(median(agg_steps$Steps, na.rm=TRUE))
+```
+The average number of steps and median steps taken each day was `r as.integer(mean(agg_steps$Steps,na.rm=TRUE))` and `r as.integer(median(agg_steps$Steps,na.rm=TRUE))` steps respectively.
 
 
 ## What is the average daily activity pattern?
+```{r}
+library(ggplot2)
+ggplot(agg_steps, aes(agg_steps$Date,agg_steps$Steps)) +
+        geom_line(data=agg_steps, aes(y=agg_steps$Steps)) +
+        xlab("date") + ylab("Avg. steps per day")
+```
 
+## Which 5-minute interval, on average across all the days in the dataset, contains the maximum number of steps?
 
+```{r}
+
+steps_interval<- aggregate(steps ~ interval, data=activity, FUN=sum)
+steps_interval[which.max(steps_interval$steps),1]
+
+plot(steps_interval$interval, steps_interval$steps, type='l', xlab='Interval', ylab='Number of steps', main="Average steps per interval")
+```
 
 ## Imputing missing values
+```{r}
+sum(is.na(activity$steps)==TRUE)
+```
+Total missing values in dataset are `r sum(is.na(activity$steps)==TRUE)` . 
 
+```{r}
+activity_new<- activity
+nas<- is.na(activity_new$steps)
+avg_interval<- tapply(activity_new$steps, activity_new$interval, mean, na.rm=TRUE, simplify = TRUE)
+activity_new$steps[nas] <- avg_interval[as.character(activity_new$interval[nas])]
+names(activity_new)
 
+sum(is.na(activity_new))
+Total_Steps<- activity_new%>%
+        group_by(date)%>%
+        summarise(total_steps = sum(steps, na.rm=TRUE))
+Total_Steps
+
+#histogram after imputation
+ggplot(Total_Steps, aes(x = total_steps)) +
+        geom_histogram(fill = "blue", binwidth = 1000) +
+        labs(title = "Daily Steps after imputation", x = "Interval", y = "No. of Steps")
+```
 
 ## Are there differences in activity patterns between weekdays and weekends?
+
+```{r}
+activity_new$day <- factor(ifelse(weekdays(activity_new$date)=='Sunday' | weekdays(activity_new$date)=='Saturday', "Weekend", "Weekday"))
+head(activity_new)
+str(activity_new)
+```
+
+## Panel plot for weekdays and weekends
+```{r}
+
+Interval<- activity_new %>%
+        group_by(interval, day) %>%
+        summarise(avg_steps = mean(steps, na.rm=TRUE))
+head(Interval)
+
+plot<- ggplot(Interval, aes(x =interval , y=avg_steps, color=day)) +
+       geom_line() +
+       labs(title = "Avg. Daily Steps by Weektype", x = "Interval", y = "No. of Steps") +
+       facet_wrap(~day, ncol = 1, nrow=2)
+print(plot)
+```
+
+From the plots and the data , it is clear that people are active over the weekend compared to the weekdays which makes us understand that people are less active during work hours.
+
+
+
+
+
+
+
+
+
+
+
+
+
+
